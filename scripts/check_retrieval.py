@@ -28,7 +28,12 @@ from citely.config import load_config  # noqa: E402
 from citely.db.repository import PassageRepository  # noqa: E402
 from citely.db.session import dispose_db, get_session_factory, init_db  # noqa: E402
 from citely.indexing.bm25_index import BM25Index  # noqa: E402
-from citely.providers.factory import build_embedding_provider, build_reranker  # noqa: E402
+from citely.providers.factory import (  # noqa: E402
+    build_embedding_provider,
+    build_llm_provider,
+    build_reranker,
+)
+from citely.query.construct import build_query_constructor  # noqa: E402
 from citely.retrieval.dense import DenseRetriever  # noqa: E402
 from citely.retrieval.fusion import reciprocal_rank_fusion  # noqa: E402
 from citely.retrieval.retriever import HybridRetriever  # noqa: E402
@@ -107,6 +112,18 @@ async def main_async(args: argparse.Namespace) -> int:
     print()
     ok = _check_rrf() and ok
 
+    # --- query construction (multi-query + metadata filters) ---
+    llm = build_llm_provider(cfg)
+    constructor = build_query_constructor(llm, cfg)
+    cq = await constructor.construct(args.query)
+    print(f"\n[construct] method={cfg.query.translation.method.value} "
+          f"dense_variants={len(cq.dense_queries)}")
+    for i, dq in enumerate(cq.dense_queries):
+        tag = "original" if i == 0 else f"variant{i}"
+        print(f"  ({tag}) {dq[:80]!r}")
+    print(f"[construct] filters: date_after={cq.filters.date_after} "
+          f"categories={cq.filters.categories} authors={cq.filters.authors}")
+
     # --- full hybrid end-to-end (own session; loads reranker) ---
     print("\n[hybrid] running full pipeline (loads reranker) ...")
     async with factory() as session:
@@ -115,6 +132,7 @@ async def main_async(args: argparse.Namespace) -> int:
         index.build(await repo.list_all())
         hybrid = HybridRetriever(
             cfg,
+            constructor,
             SparseRetriever(index),
             DenseRetriever(provider, repo),
             build_reranker(cfg),

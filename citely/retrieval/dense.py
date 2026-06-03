@@ -36,6 +36,10 @@ class DenseRetriever:
             out.append(passage)
         return out
 
+    async def filter_ids(self, ids: list[str], filters: QueryFilters) -> set[str]:
+        """Subset of ``ids`` whose parent paper satisfies ``filters`` (for any leg)."""
+        return set(await self._repository.filter_passage_ids(ids, filters))
+
     async def hydrate(self, ids: list[str]) -> dict[str, RetrievedPassage]:
         """Build RetrievedPassages (with PaperRef) for the given passage ids."""
         rows = await self._repository.get_many_with_papers(ids)

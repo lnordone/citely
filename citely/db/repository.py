@@ -135,6 +135,17 @@ class PassageRepository:
         )
         return {p.id: p for p in result.scalars().all()}
 
+    async def filter_passage_ids(
+        self, ids: list[str], filters: object | None = None
+    ) -> list[str]:
+        """Of ``ids``, return those whose parent paper satisfies ``filters``."""
+        if not ids:
+            return []
+        stmt: Select = select(Passage.id).where(Passage.id.in_(ids))
+        stmt = _apply_filters(stmt, filters)
+        rows = (await self._session.execute(stmt)).all()
+        return [row[0] for row in rows]
+
     async def search_dense(
         self, embedding: list[float], top_n: int, filters: object | None = None
     ) -> list[tuple[str, float]]:

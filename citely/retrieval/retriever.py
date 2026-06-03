@@ -11,13 +11,14 @@ from __future__ import annotations
 
 import asyncio
 
-from citely.config import Config
+from citely.config import Config, FilterOrder
 from citely.logging import get_logger
+from citely.query.construct import QueryConstructor
 from citely.retrieval.dense import DenseRetriever
 from citely.retrieval.fusion import reciprocal_rank_fusion
 from citely.retrieval.rerank import Reranker
 from citely.retrieval.sparse import SparseRetriever
-from citely.retrieval.types import RetrievalResult
+from citely.retrieval.types import RetrievalResult, RetrievedPassage
 
 log = get_logger(__name__)
 
@@ -26,11 +27,13 @@ class HybridRetriever:
     def __init__(
         self,
         cfg: Config,
+        constructor: QueryConstructor,
         sparse: SparseRetriever,
         dense: DenseRetriever,
         reranker: Reranker,
     ) -> None:
         self._cfg = cfg
+        self._constructor = constructor
         self._sparse = sparse
         self._dense = dense
         self._reranker = reranker
@@ -38,18 +41,52 @@ class HybridRetriever:
     async def retrieve(self, query: str) -> RetrievalResult:
         rc = self._cfg.retrieval
 
-        # Run both legs concurrently. (Query construction/translation + metadata filters
-        # arrive in phase 6; for now both legs see the raw query.)
-        sparse_list, dense_list = await asyncio.gather(
-            self._sparse.retrieve(query, rc.bm25_top_n),
-            self._dense.retrieve(query, rc.dense_top_n),
+        # construct -> filters + sparse/dense legs.
+        cq = await self._constructor.construct(query)
+        has_filters = not cq.filters.is_empty()
+        # `pre` pushes filters into the dense SQL (better recall within the filter);
+        # either way we re-check filters on the fused candidates below so sparse-only
+        # hits also obey them.
+        pre = rc.filter_order is FilterOrder.pre
+        dense_filters = cq.filters if (pre and has_filters) else None
+
+        # One sparse leg (literal query) + one dense leg per translated variant.
+        gathered = await asyncio.gather(
+            self._sparse.retrieve(cq.bm25_query, rc.bm25_top_n),
+            *(self._dense.retrieve(q, rc.dense_top_n, dense_filters) for q in cq.dense_queries),
         )
+        sparse_list = gathered[0]
+        dense_lists = list(gathered[1:])
 
-        fused = reciprocal_rank_fusion([dense_list, sparse_list], k_rrf=rc.rrf_k)
+        fused = reciprocal_rank_fusion([*dense_lists, sparse_list], k_rrf=rc.rrf_k)
+
+        # Enforce filters across all legs (covers sparse-only hits and `post` mode).
+        if has_filters:
+            allowed = await self._dense.filter_ids([p.passage_id for p in fused], cq.filters)
+            fused = [p for p in fused if p.passage_id in allowed]
+
         candidates = fused[: rc.rerank_candidates]
+        candidates = await self._hydrate_missing(candidates)
 
-        # Sparse-only hits arrive without text/PaperRef — hydrate them once via the
-        # dense leg's repository so the reranker has text and results render cleanly.
+        reranked = await self._reranker.rerank(query, candidates, rc.final_k)
+        for i, passage in enumerate(reranked, start=1):
+            passage.source_key = f"S{i}"
+
+        log.info(
+            "retrieve.done",
+            query=query,
+            variants=len(cq.dense_queries),
+            filters=not cq.filters.is_empty(),
+            sparse=len(sparse_list),
+            fused=len(fused),
+            final=len(reranked),
+        )
+        return RetrievalResult(query=query, passages=reranked)
+
+    async def _hydrate_missing(
+        self, candidates: list[RetrievedPassage]
+    ) -> list[RetrievedPassage]:
+        """Fill text/PaperRef for sparse-only hits, then drop any still without text."""
         missing = [p.passage_id for p in candidates if not p.text]
         if missing:
             hydrated = await self._dense.hydrate(missing)
@@ -59,18 +96,4 @@ class HybridRetriever:
                     passage.text = source.text
                     passage.paper_id = source.paper_id
                     passage.paper = source.paper
-        candidates = [p for p in candidates if p.text]
-
-        reranked = await self._reranker.rerank(query, candidates, rc.final_k)
-        for i, passage in enumerate(reranked, start=1):
-            passage.source_key = f"S{i}"
-
-        log.info(
-            "retrieve.done",
-            query=query,
-            sparse=len(sparse_list),
-            dense=len(dense_list),
-            fused=len(fused),
-            final=len(reranked),
-        )
-        return RetrievalResult(query=query, passages=reranked)
+        return [p for p in candidates if p.text]
