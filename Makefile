@@ -1,4 +1,4 @@
-.PHONY: up down migrate migrate-down revision ingest eval test lint fmt check-providers install
+.PHONY: up down migrate migrate-down revision ingest index eval test lint fmt check-providers check-ingest check-index install
 
 install:
 	pip install -e ".[dev]"
@@ -21,6 +21,9 @@ revision:
 ingest:
 	python -m citely.ingest --categories 'cs.*' 'eess.*' --max 50000
 
+index:
+	python -m citely.indexing
+
 eval:
 	python -m citely.eval
 
@@ -37,3 +40,9 @@ fmt:
 
 check-providers:
 	python scripts/check_providers.py
+
+check-ingest:
+	python scripts/check_ingest.py
+
+check-index:
+	python scripts/check_index.py

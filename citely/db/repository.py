@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from citely.db.models import Paper, Passage
@@ -94,7 +94,35 @@ class PassageRepository:
         return await self._session.get(Passage, passage_id)
 
     async def list_all(self) -> list[Passage]:
-        raise NotImplementedError  # TODO(phase 4)
+        result = await self._session.execute(select(Passage).order_by(Passage.id))
+        return list(result.scalars().all())
+
+    async def fetch_unembedded(self, limit: int) -> list[Passage]:
+        """Return up to ``limit`` passages whose dense embedding is not yet set."""
+        result = await self._session.execute(
+            select(Passage).where(Passage.embedding.is_(None)).order_by(Passage.id).limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def count_embedded(self) -> int:
+        result = await self._session.execute(
+            select(func.count()).select_from(Passage).where(Passage.embedding.is_not(None))
+        )
+        return int(result.scalar_one())
+
+    async def set_embeddings(
+        self, updates: list[tuple[str, list[float], bytes | None]]
+    ) -> None:
+        """Bulk-update ``embedding`` (and optional ``embedding_i8``) by passage id."""
+        if not updates:
+            return
+        await self._session.execute(
+            update(Passage),
+            [
+                {"id": pid, "embedding": emb, "embedding_i8": emb_i8}
+                for pid, emb, emb_i8 in updates
+            ],
+        )
 
     async def search_dense(
         self, embedding: list[float], top_n: int, filters: object | None = None
