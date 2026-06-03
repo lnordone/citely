@@ -1,4 +1,4 @@
-.PHONY: up down migrate migrate-down revision ingest index eval test lint fmt check-providers check-ingest check-index install
+.PHONY: up down migrate migrate-down revision ingest index eval test lint fmt check-providers check-ingest check-index check-retrieval install
 
 install:
 	pip install -e ".[dev]"
@@ -46,3 +46,6 @@ check-ingest:
 
 check-index:
 	python scripts/check_index.py
+
+check-retrieval:
+	python scripts/check_retrieval.py

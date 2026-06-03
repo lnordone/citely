@@ -10,8 +10,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, select, update
+from sqlalchemy import Select, cast, func, select, update
+from sqlalchemy.dialects.postgresql import JSONB, array
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.orm import joinedload
 
 from citely.db.models import Paper, Passage
 
@@ -124,8 +126,41 @@ class PassageRepository:
             ],
         )
 
+    async def get_many_with_papers(self, ids: list[str]) -> dict[str, Passage]:
+        """Fetch passages by id with their parent ``Paper`` eagerly loaded."""
+        if not ids:
+            return {}
+        result = await self._session.execute(
+            select(Passage).where(Passage.id.in_(ids)).options(joinedload(Passage.paper))
+        )
+        return {p.id: p for p in result.scalars().all()}
+
     async def search_dense(
         self, embedding: list[float], top_n: int, filters: object | None = None
     ) -> list[tuple[str, float]]:
-        """Return [(passage_id, distance)] via pgvector cosine."""
-        raise NotImplementedError  # TODO(phase 5)
+        """Return [(passage_id, distance)] via pgvector cosine, nearest first."""
+        distance = Passage.embedding.cosine_distance(embedding).label("distance")
+        stmt: Select = select(Passage.id, distance)
+        stmt = _apply_filters(stmt, filters)
+        stmt = stmt.order_by(distance).limit(top_n)
+        rows = (await self._session.execute(stmt)).all()
+        return [(row[0], float(row[1])) for row in rows]
+
+
+def _apply_filters(stmt: Select, filters: object | None) -> Select:
+    """Add metadata WHERE clauses (duck-typed QueryFilters; keeps db decoupled)."""
+    if filters is None:
+        return stmt
+    date_after = getattr(filters, "date_after", None)
+    categories = getattr(filters, "categories", None)
+    authors = getattr(filters, "authors", None)
+    if not (date_after or categories or authors):
+        return stmt
+    stmt = stmt.join(Paper, Passage.paper_id == Paper.id)
+    if date_after:
+        stmt = stmt.where(Paper.published >= date_after)
+    if categories:
+        stmt = stmt.where(cast(Paper.categories, JSONB).has_any(array(categories)))
+    if authors:
+        stmt = stmt.where(cast(Paper.authors, JSONB).has_any(array(authors)))
+    return stmt

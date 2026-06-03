@@ -7,12 +7,17 @@ imported lazily inside each builder so that selecting (say) Ollama never imports
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from citely.config import (
     Config,
     EmbeddingProviderKind,
     LLMProviderKind,
 )
 from citely.providers.base import EmbeddingProvider, LLMProvider
+
+if TYPE_CHECKING:
+    from citely.retrieval.rerank import Reranker
 
 
 def build_llm_provider(cfg: Config) -> LLMProvider:
@@ -51,7 +56,7 @@ def build_embedding_provider(cfg: Config) -> EmbeddingProvider:
     raise ValueError(f"unknown embedding provider: {kind!r}")
 
 
-def build_reranker(cfg: Config):  # noqa: ANN201 - return type lives in retrieval.rerank
+def build_reranker(cfg: Config) -> Reranker:
     """Build the cross-encoder reranker (default: BAAI/bge-reranker-base).
 
     Imported lazily; the concrete ``Reranker`` interface and implementation live in
