@@ -1,0 +1,23 @@
+{
+  "description": "Sample claims with labeled support for citation_accuracy/faithfulness. Expand in phase 9.",
+  "cases": [
+    {
+      "id": "cc1",
+      "claim": "Sparse attention reduces the quadratic cost of self-attention to near-linear.",
+      "source_ids": ["S1"],
+      "sources": {
+        "S1": "Longformer introduces a sparse attention mechanism that scales linearly with sequence length."
+      },
+      "expected_supported": true
+    },
+    {
+      "id": "cc2",
+      "claim": "Retrieval augmentation always degrades answer quality.",
+      "source_ids": ["S1"],
+      "sources": {
+        "S1": "RAG combines a parametric generator with a non-parametric retriever, improving knowledge-intensive QA."
+      },
+      "expected_supported": false
+    }
+  ]
+}

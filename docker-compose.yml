@@ -1,0 +1,37 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: citely
+      POSTGRES_PASSWORD: citely
+      POSTGRES_DB: scholarrag
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U citely -d scholarrag"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Override db host so the container reaches the compose db service.
+      CITELY_DB_URL: postgresql+asyncpg://citely:citely@db:5432/scholarrag
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+    extra_hosts:
+      # Let the api container reach an Ollama server running on the host.
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  pgdata:

@@ -1,0 +1,15 @@
+{
+  "description": "Labeled queries with known-relevant arXiv ids for recall@k. Expand in phase 9.",
+  "queries": [
+    {
+      "id": "rq1",
+      "query": "transformer architectures for long-context language modeling",
+      "relevant_arxiv_ids": ["2004.05150", "1901.02860"]
+    },
+    {
+      "id": "rq2",
+      "query": "retrieval augmented generation for question answering",
+      "relevant_arxiv_ids": ["2005.11401", "2007.01282"]
+    }
+  ]
+}

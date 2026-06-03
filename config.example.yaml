@@ -1,0 +1,59 @@
+# Citely runtime configuration. Copy to config.yaml and edit.
+# config.yaml is gitignored; this template is committed.
+
+provider: ollama                 # ollama | openai | anthropic   (LLM)
+embedding_provider: local        # local | ollama | openai
+
+models:
+  ollama_llm: qwen2.5:7b
+  ollama_embed: nomic-embed-text
+  local_embed: BAAI/bge-base-en-v1.5
+  reranker: BAAI/bge-reranker-base
+  openai_llm: gpt-4o-mini
+  anthropic_llm: claude-3-5-sonnet-latest
+  openai_embed: text-embedding-3-small
+  num_ctx: 8192                  # MUST set explicitly or Ollama defaults to 2048
+
+ingest:
+  categories: [cs.AI, cs.LG, cs.CL]
+  max_papers: 50000
+  chunk_tokens: 256
+  chunk_overlap: 32
+
+indexing:
+  vector_index: flat            # flat | hnsw
+  quantization: int8            # none | int8 | binary
+  hnsw: { m: 16, ef_construction: 200, ef_search: 64 }
+
+query:
+  translation:
+    method: multi_query         # none | multi_query | hyde | decompose
+    num_variants: 4
+  extract_metadata: true        # date/category self-query
+  router: none                  # none  (do not build yet)
+
+retrieval:
+  bm25_top_n: 200
+  dense_top_n: 200
+  rrf_k: 60
+  rerank_candidates: 50
+  final_k: 8
+  filter_order: pre             # pre | post
+
+generation:
+  verify_claims: true
+  temperature: 0.2
+  max_tokens: 2048
+
+db:
+  url: postgresql+asyncpg://citely:citely@localhost:5432/scholarrag
+
+api:
+  host: 0.0.0.0
+  port: 8000
+
+# Provider endpoints / hosts. API keys come from the environment (.env).
+providers:
+  ollama_host: http://localhost:11434
+  openai_base_url: null         # null = default OpenAI endpoint
+  request_timeout_s: 120
