@@ -46,7 +46,7 @@ class QueryTranslator:
         )
         try:
             data = await self._llm.generate_json([system, Message("user", query)], _MULTI_QUERY_SCHEMA)
-        except Exception as exc:
+        except Exception as exc:  # best-effort: fall back to the literal query
             log.warning("translate.multi_query_failed", error=str(exc))
             return [query]
 
@@ -67,7 +67,7 @@ class QueryTranslator:
         )
         try:
             doc = (await self._llm.generate([system, Message("user", query)])).strip()
-        except Exception as exc:
+        except Exception as exc:  # best-effort: fall back to the literal query
             log.warning("translate.hyde_failed", error=str(exc))
             return [query]
         # Embed both the literal query and the hypothetical document.

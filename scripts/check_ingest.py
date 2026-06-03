@@ -21,13 +21,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from sqlalchemy import func, select  # noqa: E402
+from sqlalchemy import func, select
 
-from citely.config import load_config  # noqa: E402
-from citely.db.models import Paper, Passage  # noqa: E402
-from citely.db.session import dispose_db, get_session_factory, init_db  # noqa: E402
-from citely.ingest.pipeline import run_ingest  # noqa: E402
-from citely.logging import configure_logging  # noqa: E402
+from citely.config import load_config
+from citely.db.models import Paper, Passage
+from citely.db.session import dispose_db, get_session_factory, init_db
+from citely.ingest.pipeline import run_ingest
+from citely.logging import configure_logging
 
 
 async def _counts() -> tuple[int, int, int]:

@@ -70,7 +70,7 @@ class MetadataExtractor:
     async def _llm_based(self, query: str) -> QueryFilters:
         try:
             data = await self._llm.generate_json([_SYSTEM, Message("user", query)], _FILTER_SCHEMA)
-        except Exception as exc:
+        except Exception as exc:  # best-effort: extraction degrades to no-filters
             log.warning("metadata.extract_failed", error=str(exc))
             return QueryFilters()
         return self._parse(data)

@@ -24,22 +24,22 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from citely.config import load_config  # noqa: E402
-from citely.db.repository import PassageRepository  # noqa: E402
-from citely.db.session import dispose_db, get_session_factory, init_db  # noqa: E402
-from citely.indexing.bm25_index import BM25Index  # noqa: E402
-from citely.providers.factory import (  # noqa: E402
+from citely.config import load_config
+from citely.db.repository import PassageRepository
+from citely.db.session import dispose_db, get_session_factory, init_db
+from citely.indexing.bm25_index import BM25Index
+from citely.logging import configure_logging
+from citely.providers.factory import (
     build_embedding_provider,
     build_llm_provider,
     build_reranker,
 )
-from citely.query.construct import build_query_constructor  # noqa: E402
-from citely.retrieval.dense import DenseRetriever  # noqa: E402
-from citely.retrieval.fusion import reciprocal_rank_fusion  # noqa: E402
-from citely.retrieval.retriever import HybridRetriever  # noqa: E402
-from citely.retrieval.sparse import SparseRetriever  # noqa: E402
-from citely.retrieval.types import QueryFilters, RetrievedPassage  # noqa: E402
-from citely.logging import configure_logging  # noqa: E402
+from citely.query.construct import build_query_constructor
+from citely.retrieval.dense import DenseRetriever
+from citely.retrieval.fusion import reciprocal_rank_fusion
+from citely.retrieval.retriever import HybridRetriever
+from citely.retrieval.sparse import SparseRetriever
+from citely.retrieval.types import QueryFilters, RetrievedPassage
 
 
 def _p(pid: str) -> RetrievedPassage:

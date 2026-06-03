@@ -23,14 +23,14 @@ from pathlib import Path
 # Allow running as a plain script (python scripts/check_providers.py).
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from citely.config import (  # noqa: E402
+from citely.config import (
     EmbeddingProviderKind,
     LLMProviderKind,
     load_config,
 )
-from citely.logging import configure_logging, get_logger  # noqa: E402
-from citely.providers.base import GenerationConfig, Message  # noqa: E402
-from citely.providers.factory import (  # noqa: E402
+from citely.logging import configure_logging, get_logger
+from citely.providers.base import GenerationConfig, Message
+from citely.providers.factory import (
     build_embedding_provider,
     build_llm_provider,
 )
@@ -71,7 +71,7 @@ async def check_llm(provider, prompt: str) -> bool:
     try:
         text = await provider.generate(messages, GenerationConfig(max_tokens=128))
         print(f"[LLM] generate() ok  : {text.strip()[:200]!r}")
-    except Exception as exc:  # noqa: BLE001 - report any backend failure cleanly
+    except Exception as exc:
         print(f"[LLM] generate() FAILED ({type(exc).__name__}): {exc}")
         return False
 
@@ -82,7 +82,7 @@ async def check_llm(provider, prompt: str) -> bool:
             got += len(delta)
             print(delta, end="", flush=True)
         print(f"\n[LLM] stream() ok    : {got} chars")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"\n[LLM] stream() FAILED ({type(exc).__name__}): {exc}")
         return False
 
@@ -103,7 +103,7 @@ async def check_llm(provider, prompt: str) -> bool:
         )
         assert isinstance(obj, dict), "generate_json must return a dict"
         print(f"[LLM] generate_json  : {obj}")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"[LLM] generate_json FAILED ({type(exc).__name__}): {exc}")
         return False
     return True
@@ -115,7 +115,7 @@ async def check_embedding(provider) -> bool:
     texts = ["hybrid retrieval combines sparse and dense signals", "the cat sat on the mat"]
     try:
         vectors = await provider.embed(texts)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"[EMB] embed() FAILED ({type(exc).__name__}): {exc}")
         return False
 
@@ -130,7 +130,7 @@ async def check_embedding(provider) -> bool:
         if declared != dim:
             print(f"[EMB] WARNING        : declared dim {declared} != embedded dim {dim}")
             return False
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"[EMB] dimension FAILED ({type(exc).__name__}): {exc}")
         return False
     return True

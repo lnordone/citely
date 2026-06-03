@@ -23,16 +23,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import numpy as np  # noqa: E402
+import numpy as np
 
-from citely.config import load_config  # noqa: E402
-from citely.db.repository import PassageRepository  # noqa: E402
-from citely.db.session import dispose_db, get_session_factory, init_db  # noqa: E402
-from citely.indexing.bm25_index import BM25Index  # noqa: E402
-from citely.indexing.embedder import build_embedder  # noqa: E402
-from citely.indexing.quantize import dequantize_int8  # noqa: E402
-from citely.logging import configure_logging  # noqa: E402
-from citely.providers.factory import build_embedding_provider  # noqa: E402
+from citely.config import load_config
+from citely.db.repository import PassageRepository
+from citely.db.session import dispose_db, get_session_factory, init_db
+from citely.indexing.bm25_index import BM25Index
+from citely.indexing.embedder import build_embedder
+from citely.indexing.quantize import dequantize_int8
+from citely.logging import configure_logging
+from citely.providers.factory import build_embedding_provider
 
 
 def _cosine_top_k(query: np.ndarray, matrix: np.ndarray, k: int) -> list[int]:
