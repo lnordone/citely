@@ -15,7 +15,7 @@ models:
   num_ctx: 8192                  # MUST set explicitly or Ollama defaults to 2048
 
 ingest:
-  categories: [cs.AI, cs.LG, cs.CL]
+  categories: [cs.*, eess.*]      # wildcards ok; cs.* = all CS, eess.* = elec/comp eng
   max_papers: 50000
   chunk_tokens: 256
   chunk_overlap: 32

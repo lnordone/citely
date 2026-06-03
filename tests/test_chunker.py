@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
-
 from citely.ingest.chunker import Chunker
-
-pytestmark = pytest.mark.skip(reason="TODO(phase 3): implement Chunker.chunk")
 
 
 def test_chunks_link_to_parent() -> None:

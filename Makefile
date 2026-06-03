@@ -19,7 +19,7 @@ revision:
 	alembic revision -m "$(m)"
 
 ingest:
-	python -m citely.ingest --categories cs.AI cs.LG cs.CL --max 50000
+	python -m citely.ingest --categories 'cs.*' 'eess.*' --max 50000
 
 eval:
 	python -m citely.eval
