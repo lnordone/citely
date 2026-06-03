@@ -1,4 +1,4 @@
-.PHONY: up down ingest eval test lint fmt check-providers install
+.PHONY: up down migrate migrate-down revision ingest eval test lint fmt check-providers install
 
 install:
 	pip install -e ".[dev]"
@@ -8,6 +8,15 @@ up:
 
 down:
 	docker compose down
+
+migrate:
+	alembic upgrade head
+
+migrate-down:
+	alembic downgrade -1
+
+revision:
+	alembic revision -m "$(m)"
 
 ingest:
 	python -m citely.ingest --categories cs.AI cs.LG cs.CL --max 50000

@@ -46,7 +46,7 @@ generation:
   max_tokens: 2048
 
 db:
-  url: postgresql+asyncpg://citely:citely@localhost:5432/scholarrag
+  url: postgresql+asyncpg://citely:citely@localhost:5432/citely
 
 api:
   host: 0.0.0.0

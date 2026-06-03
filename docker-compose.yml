@@ -4,13 +4,13 @@ services:
     environment:
       POSTGRES_USER: citely
       POSTGRES_PASSWORD: citely
-      POSTGRES_DB: scholarrag
+      POSTGRES_DB: citely
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U citely -d scholarrag"]
+      test: ["CMD-SHELL", "pg_isready -U citely -d citely"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -22,7 +22,7 @@ services:
         condition: service_healthy
     environment:
       # Override db host so the container reaches the compose db service.
-      CITELY_DB_URL: postgresql+asyncpg://citely:citely@db:5432/scholarrag
+      CITELY_DB_URL: postgresql+asyncpg://citely:citely@db:5432/citely
     env_file:
       - .env
     ports:

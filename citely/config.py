@@ -132,7 +132,7 @@ class GenerationConfig(_Base):
 
 
 class DBConfig(_Base):
-    url: str = "postgresql+asyncpg://citely:citely@localhost:5432/scholarrag"
+    url: str = "postgresql+asyncpg://citely:citely@localhost:5432/citely"
 
 
 class APIConfig(_Base):
