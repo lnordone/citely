@@ -10,7 +10,7 @@ deep inside a pipeline. Enums constrain the string-y switches (provider, methods
 from __future__ import annotations
 
 import os
-from enum import Enum
+from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -23,41 +23,41 @@ DEFAULT_CONFIG_PATH = Path(
 )
 
 
-class LLMProviderKind(str, Enum):
+class LLMProviderKind(StrEnum):
     ollama = "ollama"
     openai = "openai"
     anthropic = "anthropic"
 
 
-class EmbeddingProviderKind(str, Enum):
+class EmbeddingProviderKind(StrEnum):
     local = "local"
     ollama = "ollama"
     openai = "openai"
 
 
-class VectorIndexKind(str, Enum):
+class VectorIndexKind(StrEnum):
     flat = "flat"
     hnsw = "hnsw"
 
 
-class QuantizationKind(str, Enum):
+class QuantizationKind(StrEnum):
     none = "none"
     int8 = "int8"
     binary = "binary"
 
 
-class TranslationMethod(str, Enum):
+class TranslationMethod(StrEnum):
     none = "none"
     multi_query = "multi_query"
     hyde = "hyde"
     decompose = "decompose"
 
 
-class RouterKind(str, Enum):
+class RouterKind(StrEnum):
     none = "none"
 
 
-class FilterOrder(str, Enum):
+class FilterOrder(StrEnum):
     pre = "pre"
     post = "post"
 

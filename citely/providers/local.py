@@ -10,6 +10,7 @@ local embedder is actually built.
 from __future__ import annotations
 
 import asyncio
+import threading
 from typing import TYPE_CHECKING
 
 from citely.config import Config
@@ -30,6 +31,9 @@ class LocalEmbeddingProvider(EmbeddingProvider):
         self._batch_size = batch_size
         self._normalize = normalize
         self._model: SentenceTransformer | None = None
+        # HF fast tokenizers are not safe for concurrent calls ("Already borrowed"); the
+        # provider is a shared singleton, so serialize encodes across worker threads.
+        self._encode_lock = threading.Lock()
 
     def _ensure_model(self) -> SentenceTransformer:
         if self._model is None:
@@ -55,13 +59,14 @@ class LocalEmbeddingProvider(EmbeddingProvider):
         model = self._ensure_model()
 
         def _encode() -> list[list[float]]:
-            vecs = model.encode(
-                texts,
-                batch_size=self._batch_size,
-                normalize_embeddings=self._normalize,
-                convert_to_numpy=True,
-                show_progress_bar=False,
-            )
+            with self._encode_lock:
+                vecs = model.encode(
+                    texts,
+                    batch_size=self._batch_size,
+                    normalize_embeddings=self._normalize,
+                    convert_to_numpy=True,
+                    show_progress_bar=False,
+                )
             return vecs.tolist()
 
         # Keep the event loop free during a CPU/GPU-bound encode.

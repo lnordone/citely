@@ -24,9 +24,17 @@ class IngestResponse(BaseModel):
     passages_stored: int
 
 
+class ModelsResponse(BaseModel):
+    provider: str
+    default: str
+    installed: list[str] = []
+    error: str | None = None
+
+
 class SearchRequest(BaseModel):
     query: str
     top_k: int | None = None
+    model: str | None = None  # override the LLM used for query construction (ollama only)
 
 
 class SourceOut(BaseModel):
@@ -45,3 +53,4 @@ class SearchResponse(BaseModel):
 
 class ReviewRequest(BaseModel):
     query: str
+    model: str | None = None  # override the LLM for construction/review/verify (ollama only)

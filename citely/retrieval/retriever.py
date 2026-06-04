@@ -50,13 +50,19 @@ class HybridRetriever:
         pre = rc.filter_order is FilterOrder.pre
         dense_filters = cq.filters if (pre and has_filters) else None
 
-        # One sparse leg (literal query) + one dense leg per translated variant.
-        gathered = await asyncio.gather(
+        # Sparse leg runs concurrently with the dense group, but the dense variants run
+        # sequentially: they share one AsyncSession (and one embedding tokenizer), neither
+        # of which is safe for concurrent use within a single request.
+        async def _dense_legs() -> list[list[RetrievedPassage]]:
+            return [
+                await self._dense.retrieve(q, rc.dense_top_n, dense_filters)
+                for q in cq.dense_queries
+            ]
+
+        sparse_list, dense_lists = await asyncio.gather(
             self._sparse.retrieve(cq.bm25_query, rc.bm25_top_n),
-            *(self._dense.retrieve(q, rc.dense_top_n, dense_filters) for q in cq.dense_queries),
+            _dense_legs(),
         )
-        sparse_list = gathered[0]
-        dense_lists = list(gathered[1:])
 
         fused = reciprocal_rank_fusion([*dense_lists, sparse_list], k_rrf=rc.rrf_k)
 

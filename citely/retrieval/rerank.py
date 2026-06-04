@@ -9,6 +9,7 @@ constructing the reranker (e.g. in the provider factory) is cheap and import-saf
 from __future__ import annotations
 
 import asyncio
+import threading
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -31,6 +32,8 @@ class CrossEncoderReranker(Reranker):
         self._model_name = model
         self._final_k = final_k
         self._model: CrossEncoder | None = None
+        # Shared singleton + non-thread-safe HF fast tokenizer: serialize predicts.
+        self._predict_lock = threading.Lock()
 
     def _ensure_model(self) -> CrossEncoder:
         if self._model is None:
@@ -50,7 +53,8 @@ class CrossEncoderReranker(Reranker):
         def _predict() -> list[float]:
             # CrossEncoder.predict's typed signature is an over-broad union; a list of
             # (query, passage) string pairs is the documented input.
-            raw = model.predict(pairs, show_progress_bar=False)  # type: ignore[arg-type]
+            with self._predict_lock:
+                raw = model.predict(pairs, show_progress_bar=False)  # type: ignore[arg-type]
             return [float(s) for s in raw]
 
         # Cross-encoder inference is CPU/GPU-bound; keep the event loop free.

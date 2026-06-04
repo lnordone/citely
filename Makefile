@@ -1,4 +1,4 @@
-.PHONY: up down migrate migrate-down revision ingest index eval test lint fmt check-providers check-ingest check-index check-retrieval check-generation install
+.PHONY: up down serve migrate migrate-down revision ingest index eval test lint fmt check-providers check-ingest check-index check-retrieval check-generation install
 
 install:
 	pip install -e ".[dev]"
@@ -8,6 +8,9 @@ up:
 
 down:
 	docker compose down
+
+serve:
+	uvicorn citely.api.app:create_app --factory --host 0.0.0.0 --port 8000 --reload
 
 migrate:
 	alembic upgrade head
