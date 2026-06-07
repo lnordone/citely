@@ -7,6 +7,8 @@ skipped on a re-run), optionally also writing the int8-quantized representation.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+
 from citely.config import Config
 from citely.db.repository import PassageRepository
 from citely.db.session import check_embedding_dimension, get_session_factory
@@ -27,8 +29,23 @@ class Embedder:
 
     async def index_all(self) -> int:
         """Embed all un-embedded passages; return the count written."""
+        total = 0
+        async for _batch, cumulative, _grand in self.index_all_streaming():
+            total = cumulative
+        return total
+
+    async def index_all_streaming(self) -> AsyncIterator[tuple[int, int, int]]:
+        """Embed all un-embedded passages, yielding (batch_written, cumulative, grand_total).
+
+        ``grand_total`` is the count of un-embedded passages measured before the first
+        batch, giving callers a stable denominator for progress display.
+        """
         check_embedding_dimension(self._embedder)
         factory = get_session_factory()
+
+        async with factory() as session:
+            grand_total = await PassageRepository(session).count_unembedded()
+
         total = 0
         while True:
             async with factory() as session:
@@ -47,8 +64,9 @@ class Embedder:
 
             total += len(batch)
             log.info("embed.batch", written=len(batch), total=total)
+            yield len(batch), total, grand_total
+
         log.info("embed.done", total=total)
-        return total
 
 
 def build_embedder(

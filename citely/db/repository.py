@@ -112,6 +112,12 @@ class PassageRepository:
         )
         return int(result.scalar_one())
 
+    async def count_unembedded(self) -> int:
+        result = await self._session.execute(
+            select(func.count()).select_from(Passage).where(Passage.embedding.is_(None))
+        )
+        return int(result.scalar_one())
+
     async def set_embeddings(
         self, updates: list[tuple[str, list[float], bytes | None]]
     ) -> None:
@@ -151,7 +157,7 @@ class PassageRepository:
     ) -> list[tuple[str, float]]:
         """Return [(passage_id, distance)] via pgvector cosine, nearest first."""
         distance = Passage.embedding.cosine_distance(embedding).label("distance")
-        stmt: Select = select(Passage.id, distance)
+        stmt: Select = select(Passage.id, distance).where(Passage.embedding.is_not(None))
         stmt = _apply_filters(stmt, filters)
         stmt = stmt.order_by(distance).limit(top_n)
         rows = (await self._session.execute(stmt)).all()

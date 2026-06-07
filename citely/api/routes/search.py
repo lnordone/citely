@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from fastapi import APIRouter, Depends
 
-from citely.api.deps import AppState, build_retriever, get_db, get_state, resolve_llm
+from citely.api.deps import get_retriever
 from citely.api.schemas import SearchRequest, SearchResponse, SourceOut
-
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
+from citely.retrieval.retriever import HybridRetriever
 
 router = APIRouter()
 
@@ -18,11 +14,8 @@ router = APIRouter()
 @router.post("/search", response_model=SearchResponse)
 async def search(
     req: SearchRequest,
-    state: AppState = Depends(get_state),
-    session: AsyncSession = Depends(get_db),
+    retriever: HybridRetriever = Depends(get_retriever),
 ) -> SearchResponse:
-    llm = resolve_llm(state, req.model)
-    retriever = build_retriever(state, session, llm)
     result = await retriever.retrieve(req.query)
     passages = result.passages[: req.top_k] if req.top_k else result.passages
     sources = [

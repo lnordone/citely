@@ -22,6 +22,7 @@ class IngestRequest(BaseModel):
 class IngestResponse(BaseModel):
     papers_stored: int
     passages_stored: int
+    passages_embedded: int = 0
 
 
 class ModelsResponse(BaseModel):

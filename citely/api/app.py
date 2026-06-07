@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from citely.api.deps import AppState
-from citely.api.routes import health, ingest, models, review, search
+from citely.api.routes import health, ingest, review, search
 from citely.config import get_config
 from citely.db.repository import PassageRepository
 from citely.db.session import check_embedding_dimension, dispose_db, init_db
@@ -71,7 +71,6 @@ def create_app() -> FastAPI:
     """Application factory (referenced by `uvicorn ... --factory`)."""
     app = FastAPI(title="Citely", version="0.1.0", lifespan=lifespan)
     app.include_router(health.router)
-    app.include_router(models.router)
     app.include_router(ingest.router)
     app.include_router(search.router)
     app.include_router(review.router)

@@ -1,27 +1,24 @@
-import { useState } from "react";
-import { SearchBar } from "./components/SearchBar";
-import { ResultsList } from "./components/ResultsList";
-import { ReviewView } from "./components/ReviewView";
-import { search, streamReview, SourceOut } from "./api";
+import { Navigate, Route, Routes } from "react-router-dom";
+import { Sidebar } from "./components/Sidebar";
+import { WorkspacePage } from "./pages/WorkspacePage";
+import { SearchPage } from "./pages/SearchPage";
+import { IngestPage } from "./pages/IngestPage";
+import { LibraryPage } from "./pages/LibraryPage";
 
-// TODO(phase 10): query box + results + streamed review view. Minimal scaffold below.
 export function App() {
-  const [sources, setSources] = useState<SourceOut[]>([]);
-  const [review, setReview] = useState("");
-
-  async function onSubmit(query: string) {
-    setReview("");
-    const res = await search(query);
-    setSources(res.sources);
-    await streamReview(query, (chunk) => setReview((prev) => prev + chunk));
-  }
-
   return (
-    <main style={{ maxWidth: 820, margin: "2rem auto", fontFamily: "system-ui" }}>
-      <h1>Citely</h1>
-      <SearchBar onSubmit={onSubmit} />
-      <ResultsList sources={sources} />
-      <ReviewView markdown={review} />
-    </main>
+    <div className="min-h-screen flex bg-surface text-on-surface font-article-body selection:bg-inverse-primary selection:text-primary">
+      <Sidebar />
+      <main className="flex-1 flex flex-col md:ml-60 min-h-screen pb-16 md:pb-0">
+        <Routes>
+          <Route path="/" element={<Navigate to="/review" replace />} />
+          <Route path="/review" element={<WorkspacePage />} />
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/ingest" element={<IngestPage />} />
+          <Route path="/library" element={<LibraryPage />} />
+          <Route path="*" element={<Navigate to="/review" replace />} />
+        </Routes>
+      </main>
+    </div>
   );
 }

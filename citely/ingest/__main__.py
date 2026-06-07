@@ -13,6 +13,7 @@ import asyncio
 from citely.config import load_config
 from citely.ingest.pipeline import run_ingest
 from citely.logging import configure_logging
+from citely.providers.factory import build_embedding_provider
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -25,15 +26,22 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--max", type=int, default=None, dest="max_papers")
     parser.add_argument("--config", default=None)
+    parser.add_argument(
+        "--no-embed",
+        action="store_true",
+        help="store passages only; skip embedding (run `make index` later)",
+    )
     args = parser.parse_args(argv)
 
     configure_logging()
     cfg = load_config(args.config)
-    stats = asyncio.run(run_ingest(cfg, args.categories, args.max_papers))
+    embedder = None if args.no_embed else build_embedding_provider(cfg)
+    stats = asyncio.run(run_ingest(cfg, args.categories, args.max_papers, embedder=embedder))
 
     print(
         f"ingest complete: seen={stats.papers_seen} "
-        f"papers_stored={stats.papers_stored} passages_stored={stats.passages_stored}"
+        f"papers_stored={stats.papers_stored} passages_stored={stats.passages_stored} "
+        f"passages_embedded={stats.passages_embedded}"
     )
     return 0
 

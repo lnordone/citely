@@ -8,20 +8,17 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sse_starlette.sse import EventSourceResponse
 
-from citely.api.deps import AppState, build_retriever, get_db, get_state, resolve_llm
+from citely.api.deps import get_retriever, get_state
 from citely.api.schemas import ReviewRequest
 from citely.generation.render import render_markdown
 from citely.generation.reviewer import ReviewGenerator
 from citely.generation.verifier import ClaimVerifier
+from citely.retrieval.retriever import HybridRetriever
 from citely.retrieval.types import Claim
-
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
@@ -29,16 +26,15 @@ router = APIRouter()
 @router.post("/review")
 async def review(
     req: ReviewRequest,
-    state: AppState = Depends(get_state),
-    session: AsyncSession = Depends(get_db),
+    request: Request,
+    retriever: HybridRetriever = Depends(get_retriever),
 ) -> EventSourceResponse:
     """Server-sent events stream of the cited review."""
-    llm = resolve_llm(state, req.model)
-    retriever = build_retriever(state, session, llm)
+    state = get_state(request)
     result = await retriever.retrieve(req.query)
     sources = result.passages
-    reviewer = ReviewGenerator(llm, state.cfg)
-    verifier = ClaimVerifier(llm, enabled=state.cfg.generation.verify_claims)
+    reviewer = ReviewGenerator(state.llm, state.cfg)
+    verifier = ClaimVerifier(state.llm, enabled=state.cfg.generation.verify_claims)
 
     async def event_generator() -> AsyncIterator[dict]:
         claims: list[Claim] = []
