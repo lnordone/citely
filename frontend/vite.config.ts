@@ -8,6 +8,8 @@ export default defineConfig({
     proxy: {
       "/health": "http://localhost:8000",
       "/ingest": "http://localhost:8000",
+      "/models": "http://localhost:8000",
+      "/papers": "http://localhost:8000",
       "/search": "http://localhost:8000",
       "/review": "http://localhost:8000",
     },

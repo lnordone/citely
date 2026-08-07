@@ -15,14 +15,35 @@ services:
       timeout: 5s
       retries: 10
 
-  api:
+  # One-shot schema upgrade. The api service waits for this to exit 0, so `docker compose
+  # up` can never serve against an un-migrated database. Alembic is idempotent, so this
+  # is a no-op on an already-current schema.
+  migrate:
     build: .
     depends_on:
       db:
         condition: service_healthy
     environment:
+      CITELY_DB_URL: postgresql+asyncpg://citely:citely@db:5432/citely
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
       # Override db host so the container reaches the compose db service.
       CITELY_DB_URL: postgresql+asyncpg://citely:citely@db:5432/citely
+      # config.yaml says localhost:11434, which inside the container is the container
+      # itself. Point it at the host gateway (see extra_hosts below) so the default
+      # ollama provider can actually reach a host Ollama.
+      OLLAMA_HOST: http://host.docker.internal:11434
     env_file:
       - .env
     ports:
