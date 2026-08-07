@@ -175,9 +175,9 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         return out
 
 
-def build_openai_llm(cfg: Config) -> OpenAIProvider:
+def build_openai_llm(cfg: Config, model: str | None = None) -> OpenAIProvider:
     return OpenAIProvider(
-        model=cfg.models.openai_llm,
+        model=model or cfg.models.openai_llm,
         base_url=cfg.providers.openai_base_url,
         timeout_s=cfg.providers.request_timeout_s,
     )

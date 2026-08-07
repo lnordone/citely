@@ -4,8 +4,6 @@ Declarations only (no business logic). The vector column width MUST equal
 ``EmbeddingProvider.dimension`` — this is asserted at startup; a mismatch is a hard
 error. Index DDL (pgvector flat/IVFFlat/HNSW, btree on published, category filtering)
 lives in migrations.
-
-# TODO(phase 2): finalize indexes + the embedding_i8 representation in migrations.
 """
 
 from __future__ import annotations

@@ -9,13 +9,15 @@ the request-scoped DB session.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from fastapi import Depends, Request
 
 from citely.db.repository import PassageRepository
 from citely.db.session import get_session
+from citely.providers.factory import build_llm_provider
+from citely.query.construct import build_query_constructor
 from citely.retrieval.dense import DenseRetriever
 from citely.retrieval.retriever import HybridRetriever
 from citely.retrieval.sparse import SparseRetriever
@@ -40,11 +42,52 @@ class AppState:
     reranker: Reranker
     bm25_index: SparseIndex
     constructor: QueryConstructor
+    # Providers built for per-request model overrides, keyed by model name. Providers are
+    # thin stateless clients, but caching keeps a hot model from rebuilding per request.
+    llm_overrides: dict[str, LLMProvider] = field(default_factory=dict)
 
 
 def get_state(request: Request) -> AppState:
     state: AppState = request.app.state.citely
     return state
+
+
+def resolve_llm(state: AppState, model: str | None) -> LLMProvider:
+    """Return the LLM for this request, honouring an optional model override.
+
+    The configured *provider* never changes per request — only which model it is asked
+    for. An unknown model is not validated here; it surfaces as an error from the
+    provider at call time (validating would cost a round trip on every request).
+    """
+    if not model or model == state.llm.model_name:
+        return state.llm
+    cached = state.llm_overrides.get(model)
+    if cached is None:
+        cached = build_llm_provider(state.cfg, model)
+        state.llm_overrides[model] = cached
+    return cached
+
+
+def make_retriever(
+    state: AppState, session: AsyncSession, llm: LLMProvider | None = None
+) -> HybridRetriever:
+    """Wire a request-scoped HybridRetriever.
+
+    Only the query constructor depends on the LLM, so an override rebuilds just that;
+    the reranker, BM25 index and embedder stay the shared singletons.
+    """
+    constructor = (
+        state.constructor
+        if llm is None or llm is state.llm
+        else build_query_constructor(llm, state.cfg)
+    )
+    return HybridRetriever(
+        state.cfg,
+        constructor,
+        SparseRetriever(state.bm25_index),
+        DenseRetriever(state.embedder, PassageRepository(session)),
+        state.reranker,
+    )
 
 
 def get_llm(request: Request) -> LLMProvider:
@@ -58,15 +101,9 @@ def get_embedder(request: Request) -> EmbeddingProvider:
 def get_retriever(
     request: Request, session: AsyncSession = Depends(get_session)
 ) -> HybridRetriever:
-    state = get_state(request)
-    repository = PassageRepository(session)
-    return HybridRetriever(
-        state.cfg,
-        state.constructor,
-        SparseRetriever(state.bm25_index),
-        DenseRetriever(state.embedder, repository),
-        state.reranker,
-    )
+    """Default-config retriever. Routes accepting a ``model`` override call
+    :func:`make_retriever` directly instead, since the wiring depends on the body."""
+    return make_retriever(get_state(request), session)
 
 
 def get_db(session: AsyncSession = Depends(get_session)) -> AsyncSession:

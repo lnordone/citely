@@ -39,7 +39,7 @@ def main(argv: list[str] | None = None) -> int:
     stats = asyncio.run(run_ingest(cfg, args.categories, args.max_papers, embedder=embedder))
 
     print(
-        f"ingest complete: seen={stats.papers_seen} "
+        f"ingest complete: scanned={stats.papers_scanned} "
         f"papers_stored={stats.papers_stored} passages_stored={stats.passages_stored} "
         f"passages_embedded={stats.passages_embedded}"
     )

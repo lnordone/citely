@@ -48,14 +48,26 @@ class PaperRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def upsert(self, paper: Paper) -> None:
+    async def upsert(self, paper: Paper) -> bool:
+        """Upsert a paper row. Returns True if newly inserted, False if it already existed.
+
+        Uses INSERT ... ON CONFLICT DO NOTHING RETURNING id: PostgreSQL only returns a row
+        when the insert actually lands. A conflict (paper already exists) returns nothing,
+        in which case we fall through to a plain UPDATE to refresh mutable metadata.
+        """
         values = _paper_values(paper)
-        stmt = pg_insert(Paper).values(**values)
-        # On conflict, refresh mutable metadata but preserve first-seen ``ingested_at``
-        # (it is never part of ``values``, so the existing row keeps its timestamp).
-        update_cols = {c: stmt.excluded[c] for c in values if c != "id"}
-        stmt = stmt.on_conflict_do_update(index_elements=["id"], set_=update_cols)
-        await self._session.execute(stmt)
+        insert_stmt = (
+            pg_insert(Paper).values(**values).on_conflict_do_nothing().returning(Paper.id)
+        )
+        result = await self._session.execute(insert_stmt)
+        if result.scalar() is not None:
+            return True
+        # Paper already exists; refresh mutable metadata, preserve original ingested_at.
+        update_cols = {k: v for k, v in values.items() if k != "id"}
+        await self._session.execute(
+            update(Paper).where(Paper.id == paper.id).values(**update_cols)
+        )
+        return False
 
     async def get(self, paper_id: str) -> Paper | None:
         return await self._session.get(Paper, paper_id)
@@ -63,6 +75,51 @@ class PaperRepository:
     async def count(self) -> int:
         result = await self._session.execute(select(func.count()).select_from(Paper))
         return int(result.scalar_one())
+
+    async def list_with_counts(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        search: str | None = None,
+    ) -> tuple[list[tuple[Paper, int, int]], int]:
+        """Return (papers_with_counts, total) for pagination.
+
+        Each entry in the list is (Paper, passage_count, embedded_count). Correlated
+        subqueries keep the query simple; for a local corpus of <100k papers the cost
+        is negligible.
+        """
+        passage_count_sq = (
+            select(func.count())
+            .where(Passage.paper_id == Paper.id)
+            .correlate(Paper)
+            .scalar_subquery()
+        )
+        embedded_count_sq = (
+            select(func.count())
+            .where(Passage.paper_id == Paper.id, Passage.embedding.is_not(None))
+            .correlate(Paper)
+            .scalar_subquery()
+        )
+
+        total_stmt = select(func.count()).select_from(Paper)
+        data_stmt = (
+            select(Paper, passage_count_sq.label("pc"), embedded_count_sq.label("ec"))
+            # ``ingested_at`` defaults to the *transaction* timestamp, so a bulk ingest
+            # gives whole blocks of papers an identical value. Ordering on it alone is
+            # not a total order, and LIMIT/OFFSET over a partial order lets rows repeat
+            # or vanish between pages — the id tiebreaker makes pagination stable.
+            .order_by(Paper.ingested_at.desc(), Paper.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        if search:
+            like = f"%{search}%"
+            total_stmt = total_stmt.where(Paper.title.ilike(like))
+            data_stmt = data_stmt.where(Paper.title.ilike(like))
+
+        total = int((await self._session.execute(total_stmt)).scalar_one())
+        rows = (await self._session.execute(data_stmt)).all()
+        return [(row[0], int(row[1] or 0), int(row[2] or 0)) for row in rows], total
 
 
 class PassageRepository:

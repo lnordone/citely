@@ -82,3 +82,6 @@ disallow_untyped_defs = false
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "integration: needs a live, migrated Postgres (skipped automatically when absent)",
+]

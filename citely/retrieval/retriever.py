@@ -3,8 +3,6 @@
 construct -> {sparse, dense legs} -> RRF fusion -> rerank -> assign source keys -> final_k.
 All sub-components (retrievers, reranker) are injected; providers reach it only via those.
 
-# TODO(phase 5): orchestrate the legs, fuse, rerank, apply filters per filter_order,
-# assign S1.. source keys.
 """
 
 from __future__ import annotations

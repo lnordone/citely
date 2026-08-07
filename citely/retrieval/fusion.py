@@ -1,7 +1,5 @@
 """Reciprocal rank fusion.
 
-# TODO(phase 5): implement RRF: score(d) = sum_l 1 / (k_rrf + rank_l(d)); return fused
-# ranking. Pure and deterministic (covered by tests/test_fusion.py).
 """
 
 from __future__ import annotations

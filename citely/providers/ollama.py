@@ -202,9 +202,9 @@ class OllamaEmbeddingProvider(EmbeddingProvider):
         return vectors
 
 
-def build_ollama_llm(cfg: Config) -> OllamaProvider:
+def build_ollama_llm(cfg: Config, model: str | None = None) -> OllamaProvider:
     return OllamaProvider(
-        model=cfg.models.ollama_llm,
+        model=model or cfg.models.ollama_llm,
         host=cfg.providers.ollama_host,
         num_ctx=cfg.models.num_ctx,
         timeout_s=cfg.providers.request_timeout_s,

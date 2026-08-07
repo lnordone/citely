@@ -3,7 +3,6 @@
 Default: BAAI/bge-reranker-base via sentence-transformers. The model is loaded lazily so
 constructing the reranker (e.g. in the provider factory) is cheap and import-safe.
 
-# TODO(phase 5): load CrossEncoder lazily, score pairs, return top_k re-sorted.
 """
 
 from __future__ import annotations

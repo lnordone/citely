@@ -135,8 +135,8 @@ class AnthropicProvider(LLMProvider):
         return parsed
 
 
-def build_anthropic_llm(cfg: Config) -> AnthropicProvider:
+def build_anthropic_llm(cfg: Config, model: str | None = None) -> AnthropicProvider:
     return AnthropicProvider(
-        model=cfg.models.anthropic_llm,
+        model=model or cfg.models.anthropic_llm,
         timeout_s=cfg.providers.request_timeout_s,
     )

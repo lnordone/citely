@@ -35,7 +35,8 @@ class ArxivRateLimitError(RuntimeError):
 # The API caps max_results at 2000, but smaller pages are markedly more reliable.
 _DEFAULT_PAGE_SIZE = 100
 # Atom API will not page past this offset; beyond it, bulk data access is required.
-_MAX_OFFSET = 30000
+# Public: the ingest pipeline uses it as its scan budget.
+MAX_OFFSET = 30000
 
 
 def _build_search_query(categories: list[str]) -> str:
@@ -172,9 +173,7 @@ class ArxivClient:
             )
         return []
 
-    async def search(
-        self, categories: list[str], max_results: int
-    ) -> AsyncIterator[dict]:
+    async def search(self, categories: list[str], max_results: int) -> AsyncIterator[dict]:
         """Yield raw arXiv records for the given categories, newest first."""
         search_query = _build_search_query(categories)
         yielded = 0
@@ -184,7 +183,7 @@ class ArxivClient:
             headers={"User-Agent": _USER_AGENT},
             follow_redirects=True,
         ) as client:
-            while yielded < max_results and start < _MAX_OFFSET:
+            while yielded < max_results and start < MAX_OFFSET:
                 count = min(self._page_size, max_results - yielded)
                 entries = await self._fetch_page(client, search_query, start, count)
                 if not entries:

@@ -1,11 +1,14 @@
-"""Pydantic request/response models for the API.
-
-# TODO(phase 8): expand fields as routes are implemented.
-"""
+"""Pydantic request/response models for the API."""
 
 from __future__ import annotations
 
+from datetime import date, datetime
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from citely.retrieval.types import RetrievedPassage
 
 
 class HealthResponse(BaseModel):
@@ -35,7 +38,7 @@ class ModelsResponse(BaseModel):
 class SearchRequest(BaseModel):
     query: str
     top_k: int | None = None
-    model: str | None = None  # override the LLM used for query construction (ollama only)
+    model: str | None = None  # override the LLM used for query construction
 
 
 class SourceOut(BaseModel):
@@ -47,6 +50,25 @@ class SourceOut(BaseModel):
     score: float
 
 
+def to_sources_out(passages: list[RetrievedPassage]) -> list[SourceOut]:
+    """Project retrieved passages onto the wire format.
+
+    Shared by ``/search`` and ``/review``'s ``sources`` event so the two describe a
+    source identically — the citation keys are only comparable if the shape is.
+    """
+    return [
+        SourceOut(
+            source_key=p.source_key,
+            passage_id=p.passage_id,
+            paper_id=p.paper_id,
+            title=p.paper.title if p.paper else None,
+            text=p.text,
+            score=p.score,
+        )
+        for p in passages
+    ]
+
+
 class SearchResponse(BaseModel):
     query: str
     sources: list[SourceOut]
@@ -54,4 +76,21 @@ class SearchResponse(BaseModel):
 
 class ReviewRequest(BaseModel):
     query: str
-    model: str | None = None  # override the LLM for construction/review/verify (ollama only)
+    model: str | None = None  # override the LLM for construction/review/verify
+
+
+class PaperOut(BaseModel):
+    id: str
+    title: str
+    authors: list[str]
+    categories: list[str]
+    published: date
+    pdf_url: str
+    ingested_at: datetime
+    passage_count: int
+    embedded_count: int
+
+
+class PapersResponse(BaseModel):
+    papers: list[PaperOut]
+    total: int

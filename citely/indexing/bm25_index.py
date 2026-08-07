@@ -3,7 +3,6 @@
 Behind the ``SparseIndex`` interface so OpenSearch can replace rank_bm25 later without
 touching retrieval.
 
-# TODO(phase 4): tokenize passages, build BM25Okapi, implement search/save/load.
 """
 
 from __future__ import annotations

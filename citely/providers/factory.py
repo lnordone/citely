@@ -20,21 +20,27 @@ if TYPE_CHECKING:
     from citely.retrieval.rerank import Reranker
 
 
-def build_llm_provider(cfg: Config) -> LLMProvider:
-    """Switch on ``cfg.provider``."""
+def build_llm_provider(cfg: Config, model: str | None = None) -> LLMProvider:
+    """Switch on ``cfg.provider``.
+
+    ``model`` overrides the configured model name for the active provider (used by the
+    per-request model override on ``/search`` and ``/review``); ``None`` keeps the
+    configured default. The provider itself is never switched per request — only the
+    model it asks for.
+    """
     kind = cfg.provider
     if kind is LLMProviderKind.ollama:
         from citely.providers.ollama import build_ollama_llm
 
-        return build_ollama_llm(cfg)
+        return build_ollama_llm(cfg, model)
     if kind is LLMProviderKind.openai:
         from citely.providers.openai import build_openai_llm
 
-        return build_openai_llm(cfg)
+        return build_openai_llm(cfg, model)
     if kind is LLMProviderKind.anthropic:
         from citely.providers.anthropic import build_anthropic_llm
 
-        return build_anthropic_llm(cfg)
+        return build_anthropic_llm(cfg, model)
     raise ValueError(f"unknown LLM provider: {kind!r}")
 
 
