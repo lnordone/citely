@@ -26,17 +26,22 @@ export interface SearchResponse {
 export interface IngestRequest {
   categories?: string[];
   max_papers?: number;
-  // NOTE(pending-backend): date range / explicit filters are not accepted by /ingest yet.
 }
 
-/** Fired after each paper is stored (phase === "fetch") or embedding batch (phase === "embed"). */
+/** Fired after each record examined (phase === "fetch") or embedding batch (phase === "embed"). */
 export interface IngestProgress {
   phase: "fetch" | "embed";
-  /** fetch phase — papers committed so far */
+  /** fetch phase — NEW papers committed so far */
   papers?: number;
   /** fetch phase — passages committed so far */
   passages?: number;
-  /** fetch phase — requested ceiling (denominator for fetch progress) */
+  /**
+   * fetch phase — records examined so far. The scan always starts at the newest paper, so
+   * a run over an existing corpus walks past already-stored papers before finding new
+   * ones: `scanned` climbs while `papers` sits at 0.
+   */
+  scanned?: number;
+  /** fetch phase — requested ceiling of NEW papers (denominator for fetch progress) */
   max_papers?: number;
   /** embed phase — passages embedded so far */
   embedded?: number;
@@ -45,6 +50,7 @@ export interface IngestProgress {
 }
 
 export interface IngestDone {
+  papers_scanned: number;
   papers_stored: number;
   passages_stored: number;
   passages_embedded: number;
@@ -183,6 +189,8 @@ export async function streamIngest(
 }
 
 export interface ReviewHandlers {
+  /** The exact source set this review is grounded in — arrives before any claim. */
+  onSources?: (sources: SourceOut[]) => void;
   onClaim?: (claim: ReviewClaim) => void;
   onDone?: (done: ReviewDone) => void;
   onError?: (err: Error) => void;
@@ -240,7 +248,8 @@ export async function streamReview(
     const data = dataLines.join("\n");
     try {
       const parsed = JSON.parse(data);
-      if (event === "claim") handlers.onClaim?.(parsed as ReviewClaim);
+      if (event === "sources") handlers.onSources?.(parsed.sources as SourceOut[]);
+      else if (event === "claim") handlers.onClaim?.(parsed as ReviewClaim);
       else if (event === "done") handlers.onDone?.(parsed as ReviewDone);
     } catch {
       // ignore malformed event payloads
@@ -264,6 +273,36 @@ export async function streamReview(
   } catch (err) {
     if ((err as Error).name !== "AbortError") handlers.onError?.(err as Error);
   }
+}
+
+export interface PaperOut {
+  id: string;
+  title: string;
+  authors: string[];
+  categories: string[];
+  published: string; // ISO date "YYYY-MM-DD"
+  pdf_url: string;
+  ingested_at: string;
+  passage_count: number;
+  embedded_count: number;
+}
+
+export interface PapersResponse {
+  papers: PaperOut[];
+  total: number;
+}
+
+export async function getPapers(
+  params?: { limit?: number; offset?: number; search?: string },
+  signal?: AbortSignal,
+): Promise<PapersResponse> {
+  const qs = new URLSearchParams();
+  if (params?.limit !== undefined) qs.set("limit", String(params.limit));
+  if (params?.offset !== undefined) qs.set("offset", String(params.offset));
+  if (params?.search) qs.set("search", params.search);
+  const res = await fetch(`/papers?${qs}`, { signal });
+  if (!res.ok) throw new Error(`/papers failed: ${res.status}`);
+  return (await res.json()) as PapersResponse;
 }
 
 // arXiv links derived client-side from paper_id (backend doesn't return a URL yet).

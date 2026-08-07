@@ -29,8 +29,15 @@ const initial: ReviewState = {
   searchOnly: false,
 };
 
-// Orchestrates a single research run: /search (sources) then the /review SSE (claims),
-// with cancellation. `searchOnly` skips generation for fast retrieval-only exploration.
+// Orchestrates a single research run, with cancellation.
+//
+// A review run reads its sources from the /review stream's `sources` event rather than a
+// separate /search call. Citation keys (S1..Sn) are assigned per retrieval, so resolving
+// them against an independently-ranked /search response could point a chip at a paper the
+// review never cited. Using one retrieval also halves the work per run.
+//
+// `searchOnly` skips generation for fast retrieval-only exploration; that path has no
+// citations to align, so it calls /search directly.
 export function useReviewStream() {
   const [state, setState] = useState<ReviewState>(initial);
   const abortRef = useRef<AbortController | null>(null);
@@ -48,24 +55,23 @@ export function useReviewStream() {
 
     setState({ ...initial, query, searchOnly, phase: "retrieving" });
 
-    try {
-      const res = await apiSearch(query, undefined, controller.signal);
-      setState((s) => ({ ...s, sources: res.sources }));
-    } catch (err) {
-      if ((err as Error).name === "AbortError") return;
-      setState((s) => ({ ...s, phase: "error", error: (err as Error).message }));
-      return;
-    }
-
     if (searchOnly) {
-      setState((s) => ({ ...s, phase: "done" }));
+      try {
+        const res = await apiSearch(query, undefined, controller.signal);
+        setState((s) => ({ ...s, sources: res.sources, phase: "done" }));
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return;
+        setState((s) => ({ ...s, phase: "error", error: (err as Error).message }));
+      }
       return;
     }
 
-    setState((s) => ({ ...s, phase: "streaming" }));
     await streamReview(
       query,
       {
+        // Arrives before the first claim; flips the run from retrieving to streaming.
+        onSources: (sources: SourceOut[]) =>
+          setState((s) => ({ ...s, sources, phase: "streaming" })),
         onClaim: (claim: ReviewClaim) => setState((s) => ({ ...s, claims: [...s.claims, claim] })),
         onDone: (done: ReviewDone) =>
           setState((s) => ({ ...s, markdown: done.markdown, phase: "done" })),
@@ -73,7 +79,11 @@ export function useReviewStream() {
       },
       controller.signal,
     );
-    setState((s) => (s.phase === "streaming" ? { ...s, phase: "done" } : s));
+    // Stream ended without a `done` event (or without ever sending sources) — don't
+    // strand the UI mid-run.
+    setState((s) =>
+      s.phase === "streaming" || s.phase === "retrieving" ? { ...s, phase: "done" } : s,
+    );
   }, []);
 
   const reset = useCallback(() => {

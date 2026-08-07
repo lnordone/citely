@@ -203,9 +203,13 @@ export function IngestPage() {
             {/* Phase label + live counters */}
             <div className="flex justify-between items-center text-ui-label-sm font-ui-label-sm text-on-surface-variant mb-3">
               <span>
-                {phase === "fetching" && (
-                  <>Fetching papers… <span className="text-primary font-semibold">{progress?.papers ?? 0}</span> / {maxPapers}</>
-                )}
+                {phase === "fetching" && (progress?.papers ?? 0) === 0 && (progress?.scanned ?? 0) > 0 ? (
+                  // The scan starts at the newest paper, so a run over an existing corpus
+                  // walks past already-stored papers before it finds anything new.
+                  <>Scanning arXiv… <span className="text-primary font-semibold">{progress?.scanned}</span> examined, none new yet</>
+                ) : phase === "fetching" ? (
+                  <>Adding to library… <span className="text-primary font-semibold">{progress?.papers ?? 0}</span> / {maxPapers}</>
+                ) : null}
                 {phase === "embedding" && (
                   <>Embedding passages… <span className="text-primary font-semibold">{progress?.embedded ?? 0}</span>{progress?.total ? ` / ${progress.total}` : ""}</>
                 )}
@@ -219,15 +223,14 @@ export function IngestPage() {
             {error && <p className="font-ui-label-md text-ui-label-sm text-error mb-2">{error}</p>}
             {result && (
               <div className="flex gap-6 text-ui-label-sm font-ui-label-sm text-on-surface-variant border-t border-outline/10 pt-3">
-                <span><span className="text-on-surface font-semibold">{result.papers_stored}</span> papers stored</span>
+                <span><span className="text-on-surface font-semibold">{result.papers_stored}</span> papers added</span>
                 <span><span className="text-on-surface font-semibold">{result.passages_stored}</span> passages</span>
+                {/* Explains a run that added little: most records were already stored. */}
+                <span><span className="text-on-surface font-semibold">{result.papers_scanned}</span> scanned</span>
                 <span>
                   <span className="text-on-surface font-semibold">
                     {result.total_embedded ?? result.passages_embedded}
                   </span>{" embedded"}
-                  {result.passages_embedded > 0 && (
-                    <span className="ml-1 opacity-60">({result.passages_embedded} new)</span>
-                  )}
                 </span>
               </div>
             )}
